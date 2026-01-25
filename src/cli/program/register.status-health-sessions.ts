@@ -1,6 +1,7 @@
 import type { Command } from "commander";
 import { healthCommand } from "../../commands/health.js";
 import { sessionsCommand } from "../../commands/sessions.js";
+import { sessionsSendCommand } from "../../commands/sessions-send.js";
 import { statusCommand } from "../../commands/status.js";
 import { setVerbose } from "../../globals.js";
 import { defaultRuntime } from "../../runtime.js";
@@ -108,7 +109,7 @@ export function registerStatusHealthSessionsCommands(program: Command) {
       });
     });
 
-  program
+  const sessions = program
     .command("sessions")
     .description("List stored conversation sessions")
     .option("--json", "Output as JSON", false)
@@ -123,6 +124,10 @@ export function registerStatusHealthSessionsCommands(program: Command) {
           ["clawdbot sessions --active 120", "Only last 2 hours."],
           ["clawdbot sessions --json", "Machine-readable output."],
           ["clawdbot sessions --store ./tmp/sessions.json", "Use a specific session store."],
+          [
+            'clawdbot sessions send --session "agent:webchat:direct:abc" --message "Ping"',
+            "Send a message into a session.",
+          ],
         ])}\n\n${theme.muted(
           "Shows token usage per session when the agent reports it; set agents.defaults.contextTokens to see % of your model window.",
         )}`,
@@ -142,5 +147,26 @@ export function registerStatusHealthSessionsCommands(program: Command) {
         },
         defaultRuntime,
       );
+    });
+
+  sessions
+    .command("send")
+    .description("Send a message into an existing session")
+    .requiredOption("--session <sessionKey>", "Target session key (from clawdbot sessions)")
+    .requiredOption("-m, --message <text>", "Message body")
+    .option("--timeout <seconds>", "Wait for a reply (seconds, 0 = fire-and-forget)", "30")
+    .option("--json", "Output JSON instead of text", false)
+    .action(async (opts) => {
+      await runCommandWithRuntime(defaultRuntime, async () => {
+        await sessionsSendCommand(
+          {
+            session: opts.session as string | undefined,
+            message: opts.message as string | undefined,
+            timeout: opts.timeout as string | undefined,
+            json: Boolean(opts.json),
+          },
+          defaultRuntime,
+        );
+      });
     });
 }
